@@ -11,7 +11,7 @@ import {
 import { rankUrls } from './utils/seoScoring';
 import { crawlSitemap } from './services/crawlingService';
 import { createActionPlan } from './services/actionPlanService';
-import type { HistoricalAnalysis, CrawlProgress, AnalysisLogEntry, GscSite, GscTokenResponse, AiConfig, SitemapUrlEntry } from './types';
+import type { HistoricalAnalysis, CrawlProgress, AnalysisLogEntry, GscSite, GscTokenResponse, AiConfig, SitemapUrlEntry, SeoAnalysisResult, GroundingSource } from './types';
 import { AnalysisInProgress } from './components/AnalysisInProgress';
 import { CrawlingAnimation } from './components/CrawlingAnimation';
 import { GuidedAnalysisWizard, type WizardSubmitData } from './components/GuidedAnalysisWizard';
@@ -19,6 +19,7 @@ import { Modal } from './components/Modal';
 import { GoogleSearchConsoleConnect } from './components/GoogleSearchConsoleConnect';
 import { AiConfiguration } from './components/AiConfiguration';
 import { ActionPlanDashboard } from './components/ActionPlanDashboard';
+import { delay } from './utils/utility';
 
 const HISTORY_STORAGE_KEY = 'seo-analyzer-history-v13';
 const AI_CONFIG_STORAGE_KEY = 'seo-analyzer-ai-config-v13';
@@ -173,15 +174,53 @@ const App: React.FC = () => {
       
       const strategicGoals = sitewideAnalysis.strategicRoadmap.actionPlan.map(item => item.title);
 
-      log('Generating Page-Level Action Plan...', 'running');
-      const { analysis, sources } = await generateSeoAnalysis(
-        aiConfig,
-        rankedUrls, 
-        data.analysisType, 
-        data.targetLocation,
-        strategicGoals,
-        (msg) => log(msg)
-      );
+      log('Generating Page-Level Action Plan by batching URLs...', 'running');
+      
+      const CHUNK_SIZE = 20;
+      const combinedAnalysis: SeoAnalysisResult = { pageActions: [], keywords: [] };
+      const combinedSources = new Map<string, GroundingSource>();
+      const urlChunks: string[][] = [];
+
+      for (let i = 0; i < rankedUrls.length; i += CHUNK_SIZE) {
+          urlChunks.push(rankedUrls.slice(i, i + CHUNK_SIZE));
+      }
+
+      for (let i = 0; i < urlChunks.length; i++) {
+          const chunk = urlChunks[i];
+          log(`Analyzing page batch ${i + 1} of ${urlChunks.length}...`, 'running');
+          
+          const { analysis: chunkAnalysis, sources: chunkSources } = await generateSeoAnalysis(
+              aiConfig,
+              chunk,
+              data.analysisType,
+              data.targetLocation,
+              strategicGoals,
+              () => {} // Suppress logs from the inner function as we have our own batch logging
+          );
+
+          if (chunkAnalysis.pageActions) {
+            combinedAnalysis.pageActions.push(...chunkAnalysis.pageActions);
+          }
+          if (chunkAnalysis.keywords) {
+            combinedAnalysis.keywords.push(...chunkAnalysis.keywords);
+          }
+
+          if (chunkSources) {
+              chunkSources.forEach(source => {
+                  if (source.uri && !combinedSources.has(source.uri)) {
+                      combinedSources.set(source.uri, source);
+                  }
+              });
+          }
+
+          if (i < urlChunks.length - 1) {
+              await delay(1000); // 1-second delay to respect rate limits
+          }
+      }
+      
+      const analysis = combinedAnalysis;
+      const sources = Array.from(combinedSources.values());
+
       log('Page-Level Action Plan complete.', 'complete');
       
       log('Generating Step-by-Step Implementation Plan...', 'running');
