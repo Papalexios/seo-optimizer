@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { ErrorMessage } from './components/ErrorMessage';
@@ -12,7 +11,7 @@ import {
 import { rankUrls } from './utils/seoScoring';
 import { crawlSitemap } from './services/crawlingService';
 import { createActionPlan } from './services/actionPlanService';
-import type { HistoricalAnalysis, CrawlProgress, AnalysisLogEntry, GscSite, GscTokenResponse, AiConfig } from './types';
+import type { HistoricalAnalysis, CrawlProgress, AnalysisLogEntry, GscSite, GscTokenResponse, AiConfig, SitemapUrlEntry } from './types';
 import { AnalysisInProgress } from './components/AnalysisInProgress';
 import { CrawlingAnimation } from './components/CrawlingAnimation';
 import { GuidedAnalysisWizard, type WizardSubmitData } from './components/GuidedAnalysisWizard';
@@ -109,8 +108,6 @@ const App: React.FC = () => {
   }
   
   const handleAiSettingsChange = () => {
-    setAiConfig(null);
-    localStorage.removeItem(AI_CONFIG_STORAGE_KEY);
     setAppState('configure_ai');
   };
 
@@ -149,19 +146,18 @@ const App: React.FC = () => {
     
     try {
       log('Crawling your sitemap...', 'running');
-      const allPageUrls = await crawlSitemap(initialSitemapUrl.toString(), (progress: CrawlProgress) => {
+      const urlEntries: SitemapUrlEntry[] = await crawlSitemap(initialSitemapUrl.toString(), (progress: CrawlProgress) => {
         requestAnimationFrame(() => {
             setCrawlProgress(progress);
         });
       });
-      log(`Found ${allPageUrls.size} URLs in your sitemap.`, 'complete');
+      log(`Found ${urlEntries.length} URLs in your sitemap.`, 'complete');
 
-      const urlsFromSitemap = Array.from(allPageUrls);
-      if (urlsFromSitemap.length === 0) {
+      if (urlEntries.length === 0) {
           throw new Error("Crawl complete, but no URLs were found. Your sitemap might be empty or in a format that could not be parsed.");
       }
       
-      const rankedUrls = rankUrls(urlsFromSitemap);
+      const rankedUrls = rankUrls(urlEntries);
       log(`Scored and prioritized ${rankedUrls.length} relevant pages.`, 'complete');
       
       log('Initiating Sitewide Strategic Audit...', 'running');

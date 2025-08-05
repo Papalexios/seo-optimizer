@@ -38,10 +38,10 @@ export const CopyReportButton: React.FC<CopyReportButtonProps> = ({ analysis }) 
                 ? 'bg-green-500/20 text-green-300 ring-1 ring-inset ring-green-500/40'
                 : 'bg-gray-800 hover:bg-gray-700 text-white shadow-lg ring-1 ring-inset ring-gray-700'
             }`}
-            aria-label="Copy full report to clipboard"
+            aria-label="Copy full strategy report to clipboard"
         >
             {copied ? <CheckIcon /> : <CopyIcon />}
-            {copied ? 'Report Copied!' : 'Copy Report'}
+            {copied ? 'Report Copied!' : 'Export Full Report'}
         </button>
     );
 };

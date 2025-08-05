@@ -1,4 +1,6 @@
 
+
+
 import React, { useState } from 'react';
 import { ActionItem, ChecklistItem } from '../types';
 import { PromptLibrary } from './PromptLibrary';
@@ -86,7 +88,7 @@ export const ActionItemCard: React.FC<{ actionItem: ActionItem; onToggleTaskComp
                     <div className="p-4 bg-gray-950/50 rounded-lg border border-gray-700/60 min-h-[100px]">
                         {activeTab === 'implementation' && (
                             <ol className="space-y-3 text-sm list-decimal list-inside text-gray-300">
-                                {actionItem.stepByStepImplementation.map((step, index) => <li key={index}>{step}</li>)}
+                                {actionItem.stepByStepImplementation.map((step, index) => <li key={index}>{step.replace(/^\d+\.\s*/, '')}</li>)}
                             </ol>
                         )}
                          {activeTab === 'details' && (

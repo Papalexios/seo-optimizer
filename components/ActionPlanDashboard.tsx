@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo } from 'react';
 import type { HistoricalAnalysis, DailyActionPlan, AiConfig, GscTokenResponse } from '../types';
 import { DailyPlanCard } from './DailyPlanCard';
@@ -60,7 +61,7 @@ export const ActionPlanDashboard: React.FC<ActionPlanDashboardProps> = (props) =
             <AutonomousAIHeader />
             
             {executiveSummary && (
-                <ExecutiveSummary summary={executiveSummary} />
+                <ExecutiveSummary summary={executiveSummary} analysis={analysis} />
             )}
 
             {sitewideAnalysis?.strategicRoadmap && (
@@ -73,14 +74,11 @@ export const ActionPlanDashboard: React.FC<ActionPlanDashboardProps> = (props) =
                         <h2 className="text-2xl font-bold text-gray-200">Your Daily Action Plan</h2>
                         <p className="text-gray-400">Follow these steps day-by-day to implement your SEO strategy.</p>
                     </div>
-                    <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
-                        <div className="w-full sm:w-56">
-                            <label htmlFor="progress" className="text-sm font-medium text-gray-400">Overall Progress: {progress.completed}/{progress.total} Tasks</label>
-                            <div className="w-full bg-gray-700/50 rounded-full h-2.5 mt-1">
-                                <div className="bg-gradient-to-r from-teal-400 to-blue-500 h-2.5 rounded-full transition-all duration-500" style={{width: `${progress.percentage}%`}}></div>
-                            </div>
+                    <div className="w-full sm:w-56">
+                        <label htmlFor="progress" className="text-sm font-medium text-gray-400">Overall Progress: {progress.completed}/{progress.total} Tasks</label>
+                        <div className="w-full bg-gray-700/50 rounded-full h-2.5 mt-1">
+                            <div className="bg-gradient-to-r from-teal-400 to-blue-500 h-2.5 rounded-full transition-all duration-500" style={{width: `${progress.percentage}%`}}></div>
                         </div>
-                        <CopyReportButton analysis={analysis} />
                     </div>
                 </div>
 

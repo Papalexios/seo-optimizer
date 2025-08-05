@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { AiProvider, AiConfig } from '../types';
 import { validateApiKey } from '../services/aiValidationService';
@@ -59,26 +60,15 @@ export const AiConfiguration: React.FC<AiConfigurationProps> = ({ onConfigured, 
     }
   };
   
-  if (currentConfig) {
-      return (
-          <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/60 flex items-center justify-between animate-fade-in">
-              <div className="flex items-center gap-3">
-                  <span className="text-2xl">{providerDetails[currentConfig.provider].logo}</span>
-                  <div>
-                    <p className="font-semibold text-gray-200">{providerDetails[currentConfig.provider].name} Configured</p>
-                    <p className="text-xs text-gray-400">API Key ending in: ...{currentConfig.apiKey.slice(-4)}</p>
-                  </div>
-              </div>
-              <button onClick={() => onConfigured(null as any)} className="text-sm font-semibold text-blue-400 hover:text-blue-300">Change</button>
-          </div>
-      )
-  }
-
   return (
     <div className="bg-gray-900/50 p-6 sm:p-8 rounded-xl shadow-2xl border border-gray-700/60 animate-fade-in">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-gray-200">Configure AI Provider</h2>
-        <p className="text-gray-400 mt-2">Choose your preferred AI service and enter your API key to begin.</p>
+        <p className="text-gray-400 mt-2">
+            {currentConfig 
+              ? 'View or update your AI provider settings below.'
+              : 'Choose your preferred AI service and enter your API key to begin.'}
+        </p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>

@@ -1,4 +1,12 @@
 
+
+// For enhanced sitemap crawling
+export interface SitemapUrlEntry {
+    url: string;
+    lastMod?: string; // ISO 8601 date string
+    priority?: number; // 0.0 to 1.0
+}
+
 // For the Sitewide Audit V10
 export interface StrategicRoadmapData {
   missionStatement: string;
@@ -214,6 +222,7 @@ export interface ExecutiveSummary {
   optimizations: ExecutiveSummaryAction[];
   newContent: ExecutiveSummaryContent[];
   redirects: ExecutiveSummaryRedirect[];
+  contentDecay: ExecutiveSummaryAction[]; // New for Content Decay Forecasting
 }
 // End of 80/20 Types
 

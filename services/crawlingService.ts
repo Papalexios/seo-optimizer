@@ -1,29 +1,60 @@
 
 
-import type { CrawlProgress } from "../types";
-
-const fetchWithProxy = async (targetUrl: string, signal: AbortSignal, options: RequestInit = {}) => {
-    // This proxy is used for the browser environment to bypass CORS.
-    // In a real backend implementation, this would be a direct fetch.
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-    const response = await fetch(proxyUrl, { ...options, signal });
-     if (!response.ok) {
-        throw new Error(`Failed to fetch from ${targetUrl} via proxy. Status: ${response.status}`);
-     }
-    return response;
-}
+import type { CrawlProgress, SitemapUrlEntry } from "../types";
 
 const CONCURRENCY_LIMIT = 8;
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
 
-/**
- * Crawls a sitemap, handling nested sitemap indexes and reporting progress.
- * @param initialSitemapUrl The starting URL of the sitemap.
- * @param onProgress A callback function to report progress.
- * @returns A Promise that resolves to a Set of all discovered page URLs.
- */
-export const crawlSitemap = async (initialSitemapUrl: string, onProgress: (progress: CrawlProgress) => void): Promise<Set<string>> => {
+// Enhanced fetch with retry and exponential backoff
+const fetchWithRetry = async (url: string, signal: AbortSignal): Promise<Response> => {
+    let lastError: Error | undefined;
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+            const response = await fetch(proxyUrl, { signal });
+            if (!response.ok) {
+                // Don't retry on client errors like 404, but do on server errors
+                if (response.status >= 400 && response.status < 500) {
+                    throw new Error(`Client error fetching ${url}: Status ${response.status}`);
+                }
+                // For 5xx errors, we will retry
+                throw new Error(`Server error fetching ${url}: Status ${response.status}`);
+            }
+            return response;
+        } catch (error) {
+            lastError = error as Error;
+            if (i < MAX_RETRIES - 1) {
+                const delay = INITIAL_RETRY_DELAY * Math.pow(2, i);
+                console.warn(`Attempt ${i + 1} failed for ${url}. Retrying in ${delay}ms...`, error);
+                await new Promise(res => setTimeout(res, delay));
+            }
+        }
+    }
+    throw new Error(`Failed to fetch ${url} after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`);
+};
+
+const extractUrlsFromXml = (xmlDoc: Document): SitemapUrlEntry[] => {
+    const urlEntries: SitemapUrlEntry[] = [];
+    const urlNodes = xmlDoc.querySelectorAll("url");
+
+    urlNodes.forEach(node => {
+        const loc = node.querySelector("loc")?.textContent;
+        if (loc) {
+            const lastMod = node.querySelector("lastmod")?.textContent;
+            const priorityText = node.querySelector("priority")?.textContent;
+            const priority = priorityText ? parseFloat(priorityText) : undefined;
+            urlEntries.push({ url: loc, lastMod, priority });
+        }
+    });
+
+    return urlEntries;
+};
+
+export const crawlSitemap = async (initialSitemapUrl: string, onProgress: (progress: CrawlProgress) => void): Promise<SitemapUrlEntry[]> => {
     const parser = new DOMParser();
-    const allPageUrls = new Set<string>();
+    const allPageUrlEntries = new Map<string, SitemapUrlEntry>();
     
     const controller = new AbortController();
     const signal = controller.signal;
@@ -43,7 +74,8 @@ export const crawlSitemap = async (initialSitemapUrl: string, onProgress: (progr
             if (processedIndexes.has(currentSitemapUrl)) continue;
 
             try {
-                const sitemapText = await (await fetchWithProxy(currentSitemapUrl, signal)).text();
+                const response = await fetchWithRetry(currentSitemapUrl, signal);
+                const sitemapText = await response.text();
                 processedIndexes.add(currentSitemapUrl);
                 const xmlDoc = parser.parseFromString(sitemapText, "text/xml");
                 if (xmlDoc.getElementsByTagName("parsererror").length > 0) continue;
@@ -57,43 +89,33 @@ export const crawlSitemap = async (initialSitemapUrl: string, onProgress: (progr
                 }
                 onProgress({ type: 'preflight', count: processedIndexes.size, total: processedIndexes.size + queue.length, currentSitemap: currentSitemapUrl, pagesFound: 0 });
             } catch (e) {
-                 console.warn(`Could not process sitemap index ${currentSitemapUrl}:`, e);
+                 console.warn(`Could not process sitemap index ${currentSitemapUrl}:`, e instanceof Error ? e.message : String(e));
             }
         }
         
         // --- NEW: Phase 1.5: Count all URLs in PARALLEL ---
         let totalUrlCount = 0;
         const sitemapsToCount = Array.from(contentSitemapUrls);
-        let sitemapsCounted = 0;
-        
         onProgress({ type: 'counting', count: 0, total: sitemapsToCount.length, pagesFound: 0 });
         
-        const countQueue = [...sitemapsToCount];
-        const countWorker = async () => {
-            while(countQueue.length > 0) {
-                const sitemapUrl = countQueue.shift();
-                if (!sitemapUrl) continue;
-
-                if (signal.aborted) throw new Error("Crawl timed out during URL counting.");
-                try {
-                    const sitemapText = await (await fetchWithProxy(sitemapUrl, signal)).text();
-                    const xmlDoc = parser.parseFromString(sitemapText, "text/xml");
-                    if (xmlDoc.getElementsByTagName("parsererror").length > 0) continue;
-                    
-                    const locNodes = xmlDoc.querySelectorAll("url > loc");
-                    // This is thread-safe in JS single-threaded environment
-                    totalUrlCount += locNodes.length;
-                } catch(e) {
-                    console.warn(`Could not count URLs in ${sitemapUrl}:`, e);
-                } finally {
-                    sitemapsCounted++;
-                    onProgress({ type: 'counting', count: sitemapsCounted, total: sitemapsToCount.length, pagesFound: totalUrlCount });
-                }
+        const countPromises = sitemapsToCount.map(async (sitemapUrl) => {
+            if (signal.aborted) return 0;
+            try {
+                const response = await fetchWithRetry(sitemapUrl, signal);
+                const sitemapText = await response.text();
+                const xmlDoc = parser.parseFromString(sitemapText, "text/xml");
+                if (xmlDoc.getElementsByTagName("parsererror").length > 0) return 0;
+                const locNodes = xmlDoc.querySelectorAll("url > loc");
+                return locNodes.length;
+            } catch(e) {
+                console.warn(`Could not count URLs in ${sitemapUrl}:`, e instanceof Error ? e.message : String(e));
+                return 0;
             }
-        }
-        
-        const countWorkers = Array.from({ length: Math.min(CONCURRENCY_LIMIT, sitemapsToCount.length) }).map(countWorker);
-        await Promise.all(countWorkers);
+        });
+
+        const counts = await Promise.all(countPromises);
+        totalUrlCount = counts.reduce((sum, count) => sum + (count || 0), 0);
+        onProgress({ type: 'counting', count: sitemapsToCount.length, total: sitemapsToCount.length, pagesFound: totalUrlCount });
 
 
         // --- Phase 2: Crawl content sitemaps in PARALLEL ---
@@ -110,33 +132,32 @@ export const crawlSitemap = async (initialSitemapUrl: string, onProgress: (progr
             
                 try {
                     if (signal.aborted) throw new Error("Crawl timed out during content processing.");
-                    const sitemapText = await (await fetchWithProxy(sitemapUrl, signal)).text();
+                    const response = await fetchWithRetry(sitemapUrl, signal);
+                    const sitemapText = await response.text();
                     const xmlDoc = parser.parseFromString(sitemapText, "text/xml");
                     if (xmlDoc.getElementsByTagName("parsererror").length > 0) continue;
 
-                    const locNodes = xmlDoc.querySelectorAll("url > loc");
-                    const urlsFromCurrentSitemap = Array.from(locNodes).map(node => node.textContent).filter(Boolean) as string[];
+                    const entries = extractUrlsFromXml(xmlDoc);
 
-                    urlsFromCurrentSitemap.forEach(pageUrl => {
-                        const previousSize = allPageUrls.size;
-                        allPageUrls.add(pageUrl);
-                        if (allPageUrls.size > previousSize) {
+                    entries.forEach(entry => {
+                        if (!allPageUrlEntries.has(entry.url)) {
+                           allPageUrlEntries.set(entry.url, entry);
                             onProgress({
                                 type: 'crawling',
                                 count: processedCount,
                                 total: totalSitemaps,
                                 currentSitemap: sitemapUrl,
-                                pagesFound: allPageUrls.size,
-                                lastUrlFound: pageUrl,
+                                pagesFound: allPageUrlEntries.size,
+                                lastUrlFound: entry.url,
                                 totalUrls: totalUrlCount,
                             });
                         }
                     });
                 } catch (e) {
-                    console.warn(`Could not process content sitemap ${sitemapUrl}:`, e);
+                    console.warn(`Could not process content sitemap ${sitemapUrl}:`, e instanceof Error ? e.message : String(e));
                 } finally {
                     processedCount++;
-                    onProgress({ type: 'crawling', count: processedCount, total: totalSitemaps, currentSitemap: sitemapUrl, pagesFound: allPageUrls.size, totalUrls: totalUrlCount });
+                    onProgress({ type: 'crawling', count: processedCount, total: totalSitemaps, currentSitemap: sitemapUrl, pagesFound: allPageUrlEntries.size, totalUrls: totalUrlCount });
                 }
             }
         }
@@ -148,5 +169,5 @@ export const crawlSitemap = async (initialSitemapUrl: string, onProgress: (progr
         clearTimeout(timeoutId);
     }
     
-    return allPageUrls;
-}
+    return Array.from(allPageUrlEntries.values());
+};

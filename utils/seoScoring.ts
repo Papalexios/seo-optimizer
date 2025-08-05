@@ -1,44 +1,23 @@
 
+
+import type { SitemapUrlEntry } from '../types';
+
 const KEYWORD_BOOSTS: { [key: string]: number } = {
     // Commercial keywords
-    'product': 10,
-    'service': 10,
-    'pricing': 12,
-    'buy': 10,
-    'shop': 8,
-    'demo': 12,
-    'solutions': 8,
-    'features': 8,
-    'case-study': 8,
-    'integration': 7,
-
+    'product': 10, 'service': 10, 'pricing': 12, 'buy': 10, 'shop': 8,
+    'demo': 12, 'solutions': 8, 'features': 8, 'case-study': 8, 'integration': 7,
     // High-value informational / Pillar Content
-    'docs': 3,
-    'api': 4,
-    'guide': 7,
-    'tutorial': 6,
-    'learn': 7,
-    'hub': 9,
-    'pillar': 9,
-    'guides': 8,
-
+    'docs': 3, 'api': 4, 'guide': 7, 'tutorial': 6, 'learn': 7,
+    'hub': 9, 'pillar': 9, 'guides': 8,
     // Navigational
-    'contact': 5,
-    'about': 5,
-
+    'contact': 5, 'about': 5,
     // De-prioritize
-    'blog': -5, // Penalize generic blog listing pages
-    '/blog/': 2, // But give a small boost to individual posts
-    'policy': -15,
-    'terms': -15,
-    'legal': -15,
-    'author': -10,
-    'tag': -10,
-    'category': -10,
-    'page/': -20, // Penalize pagination
+    'blog': -5, '/blog/': 2, 'policy': -15, 'terms': -15, 'legal': -15,
+    'author': -10, 'tag': -10, 'category': -10, 'page/': -20,
 };
 
-const calculateScore = (url: string): number => {
+const calculateScore = (entry: SitemapUrlEntry): number => {
+    const { url, lastMod, priority } = entry;
     try {
         let score = 100;
         const urlObject = new URL(url);
@@ -69,22 +48,39 @@ const calculateScore = (url: string): number => {
         if (urlPath === '/') {
             score += 50;
         }
+        
+        // 6. NEW: Priority Boost from sitemap
+        if (priority !== undefined) {
+            score += (priority - 0.5) * 20; // e.g., priority 1.0 gives +10, 0.1 gives -8
+        }
 
-        return Math.max(0, score); // Ensure score doesn't go below zero
+        // 7. NEW: Freshness Boost from lastMod
+        if (lastMod) {
+            const modDate = new Date(lastMod);
+            const now = new Date();
+            const diffDays = (now.getTime() - modDate.getTime()) / (1000 * 3600 * 24);
+            
+            if (diffDays < 30) score += 15; // Updated in last month
+            else if (diffDays < 90) score += 10; // Updated in last 3 months
+            else if (diffDays > 365) score -= 10; // Over a year old
+            if (diffDays > 730) score -= 15; // Over two years old
+        }
+
+        return Math.max(0, score);
     } catch (e) {
         console.error(`Could not parse URL for scoring: ${url}`, e);
-        return 0; // Invalid URLs get no score
+        return 0;
     }
 };
 
 /**
- * Ranks an array of URLs based on their estimated SEO importance.
- * @param urls An array of URL strings.
+ * Ranks an array of SitemapUrlEntry objects based on their estimated SEO importance.
+ * @param entries An array of SitemapUrlEntry objects.
  * @returns A new array of URL strings sorted from most to least important.
  */
-export const rankUrls = (urls: string[]): string[] => {
-    return [...urls]
-        .map(url => ({ url, score: calculateScore(url) }))
+export const rankUrls = (entries: SitemapUrlEntry[]): string[] => {
+    return [...entries]
+        .map(entry => ({ url: entry.url, score: calculateScore(entry) }))
         .sort((a, b) => b.score - a.score)
         .map(item => item.url);
 };

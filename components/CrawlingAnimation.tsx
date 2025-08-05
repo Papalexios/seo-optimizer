@@ -116,16 +116,23 @@ export const CrawlingAnimation: React.FC<{ progress: CrawlProgress }> = ({ progr
                     
                     {progress.type === 'crawling' ? (
                         <div className="space-y-4 font-mono text-sm animate-fade-in">
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-gray-500">URLs Checked:</span>
-                                <span className="text-gray-200 font-semibold">{progress.pagesFound?.toLocaleString() ?? 0} / {progress.totalUrls?.toLocaleString() ?? '...'}</span>
+                            <div>
+                                <div className="flex justify-between items-baseline mb-1">
+                                    <span className="text-gray-500">URLs Checked:</span>
+                                    <span className="text-gray-200 font-semibold">{progress.pagesFound?.toLocaleString() ?? 0} / {progress.totalUrls?.toLocaleString() ?? '...'}</span>
+                                </div>
+                                <div className="w-full bg-gray-700/50 rounded-full h-2">
+                                    <div className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-linear" style={{ width: `${urlPercentage}%` }}></div>
+                                </div>
                             </div>
-                            <div className="w-full bg-gray-700/50 rounded-full h-2">
-                                <div className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-linear" style={{ width: `${urlPercentage}%` }}></div>
-                            </div>
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-gray-500">Sitemaps Processed:</span>
-                                <span className="text-teal-400 font-semibold">{progress.count.toLocaleString()} / {progress.total.toLocaleString()}</span>
+                            <div>
+                                <div className="flex justify-between items-baseline mb-1">
+                                    <span className="text-gray-500">Sitemaps Processed:</span>
+                                    <span className="text-teal-400 font-semibold">{progress.count.toLocaleString()} / {progress.total.toLocaleString()}</span>
+                                </div>
+                                <div className="w-full bg-gray-700/50 rounded-full h-2">
+                                    <div className="bg-teal-500 h-2 rounded-full transition-all duration-300 ease-linear" style={{ width: `${sitemapPercentage}%` }}></div>
+                                </div>
                             </div>
                         </div>
                     ) : (

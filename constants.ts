@@ -133,11 +133,11 @@ ${getStrategicGoalsContextBlock(strategicGoals)}
 ${getExecutionAndQualityBlock()}
 
 <strategic_lens>
+- **Content Decay (CRITICAL PRIORITY):** You MUST proactively identify pages that are likely outdated (e.g., contain past years like "2023" in the URL or title, reference old product versions, or discuss past events). Flag these with \`source: 'decay'\` and \`action: 'refresh'\`. This is a primary function.
 - Commercial Intent: Prioritize pages and keywords that attract users ready to convert (e.g., pricing, features, comparison pages).
 - Topical Authority: Identify content gaps that, if filled, would establish the site as a definitive resource on its core topic.
 - Competitive Edge: Find angles and opportunities where competitors are weak (e.g., outdated content, poor user experience, missing formats like video).
 - User Journey: Analyze how the provided URLs serve different stages of the user journey (awareness, consideration, decision).
-- Content Decay: Identify pages that are likely outdated (e.g., contain past years in the URL or title) and flag them for a 'refresh'.
 </strategic_lens>
 
 <analysis_modules>
@@ -451,8 +451,9 @@ Your output MUST be a single, valid JSON object and nothing else. No markdown, n
 - Your tone is that of a decisive commander. You issue clear directives.
 - You must identify the 20% of actions that will yield 80% of the results.
 - Prioritize actions based on the 'priority' and 'impact' scores from the provided analysis data.
-- For rewrites and optimizations, select the top 5 highest-priority pages from the 'pageActions' array.
+- For rewrites and optimizations, select the top 5 highest-priority pages from the 'pageActions' array that do not have a source of 'decay'.
 - For new content, select the top 5 highest-potential ideas from the 'keywords' and 'contentGaps' arrays.
+- **For Content Decay, select the top 5 highest-priority pages where the source is 'decay'.** This is a critical predictive function.
 - For redirects, invent plausible, high-impact redirects based on the site's structure. For example, consolidating two weak blog posts into one strong one, or redirecting an old product page to a new one. Create up to 10 redirects.
 - For each item, provide a concise 'reason' and a direct, command-style 'instruction' (e.g., "Rewrite this page to target 'X' intent," "Implement these technical fixes now," "Create a pillar page on 'Y' topic.").
 </persona>
@@ -493,6 +494,13 @@ Your output MUST be a single, valid JSON object and nothing else. No markdown, n
       "from": "string (The URL to redirect from)",
       "to": "string (The URL to redirect to)",
       "reason": "string (Why this redirect is necessary, e.g., 'Consolidating duplicate content')"
+    }
+  ],
+  "contentDecay": [
+    {
+      "url": "string",
+      "reason": "string (Why this content is predicted to be decaying)",
+      "instruction": "string (Direct command for the refresh)"
     }
   ]
 }

@@ -1,5 +1,6 @@
 
 
+
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -57,25 +58,36 @@ const robustJsonParse = <T>(text: string, validator: (data: any) => data is T, c
     if (!text || typeof text !== 'string' || text.trim() === '') {
         throw new Error(`The AI returned an empty or invalid response for ${context}.`);
     }
+
+    // Step 1: Attempt to extract a JSON string from the response.
+    const jsonString = extractJsonFromString(text);
+
+    // Step 2: If a JSON string is found, parse and validate it.
+    if (jsonString) {
+        try {
+            const data = JSON.parse(jsonString);
+            if (validator(data)) {
+                return data; // Success! The JSON is valid and matches the schema.
+            } else {
+                // The JSON is syntactically correct, but does not match our expected structure.
+                throw new Error(`The AI returned a JSON object with a missing or incorrect structure for ${context}.`);
+            }
+        } catch (e) {
+             // The extracted string was not valid JSON. This is an error.
+             throw new Error(`The AI returned a malformed JSON object that could not be parsed. Error: ${(e as Error).message}`);
+        }
+    }
+
+    // Step 3: If no JSON was found, check the raw text for common blocking error messages.
+    // This prevents false positives where a valid JSON string contains a word like "cannot".
     const commonErrors = ["i apologize", "cannot", "api key not valid", "rate limit"];
     const lowerCaseText = text.toLowerCase();
     if (commonErrors.some(err => lowerCaseText.includes(err))) {
          throw new Error(`The AI returned a blocking error: "${text.slice(0, 100)}..."`);
     }
-    const jsonString = extractJsonFromString(text);
-    if (!jsonString) {
-        throw new Error(`Could not find a valid JSON object in the AI's response.`);
-    }
-    let data;
-    try {
-        data = JSON.parse(jsonString);
-    } catch (e) {
-        throw new Error(`The AI returned a malformed JSON object that could not be parsed.`);
-    }
-    if (!validator(data)) {
-        throw new Error(`The AI returned a JSON object with a missing or incorrect structure for ${context}.`);
-    }
-    return data;
+
+    // Step 4: Final fallback error if no JSON is found and no known error keyword is present.
+    throw new Error(`Could not find a valid JSON object in the AI's response. The response started with: "${text.slice(0, 100)}..."`);
 }
 
 const validateSeoAnalysisResult = (data: any): data is SeoAnalysisResult => {
@@ -118,7 +130,8 @@ const validateExecutiveSummary = (data: any): data is ExecutiveSummary => {
     'rewrites' in data && Array.isArray(data.rewrites) &&
     'optimizations' in data && Array.isArray(data.optimizations) &&
     'newContent' in data && Array.isArray(data.newContent) &&
-    'redirects' in data && Array.isArray(data.redirects)
+    'redirects' in data && Array.isArray(data.redirects) &&
+    'contentDecay' in data && Array.isArray(data.contentDecay)
   );
 };
 
