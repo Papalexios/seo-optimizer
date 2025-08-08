@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "name": "orchestrator-ai-v13.0",
+=======
+  "name": "orchestrator-ai-v17.0",
+>>>>>>> 06ac2400dd79f2665804748c70bf1849f5de0220
   "private": true,
   "version": "0.0.0",
   "type": "module",

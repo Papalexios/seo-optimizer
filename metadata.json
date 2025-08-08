@@ -1,6 +1,11 @@
 {
+<<<<<<< HEAD
   "name": "Orchestrator AI v13.0",
   "description": "An autonomous AI strategist that transforms your sitemap into a prioritized, day-by-day action plan for organic growth.",
+=======
+  "name": " Orchestrator AI v17.0",
+  "description": "A strategic SEO partner that connects to your Google Search Console account to transform real performance data into a prioritized, high-impact roadmap for organic growth.",
+>>>>>>> 06ac2400dd79f2665804748c70bf1849f5de0220
   "requestFramePermissions": [],
   "prompt": ""
 }

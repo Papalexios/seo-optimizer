@@ -20,10 +20,17 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, showNewAnalysisButt
       <div className="flex items-center justify-between gap-4">
         <div>
             <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-teal-400 to-green-400 pb-2">
+<<<<<<< HEAD
                 Orchestrator AI
             </h1>
              <p className="mt-2 text-lg text-gray-400 max-w-3xl">
                 Your Autonomous SEO Strategist.
+=======
+                Orchestrator AI v12.0
+            </h1>
+             <p className="mt-2 text-lg text-gray-400 max-w-3xl">
+                Your strategic partner for dominating organic search.
+>>>>>>> 06ac2400dd79f2665804748c70bf1849f5de0220
             </p>
         </div>
         <div className="flex items-center gap-2">

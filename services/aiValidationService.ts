@@ -1,5 +1,8 @@
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 06ac2400dd79f2665804748c70bf1849f5de0220
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -47,6 +50,10 @@ export const validateApiKey = async (config: AiConfig): Promise<ValidationResult
                 await ai.models.generateContent({
                     model: 'gemini-2.5-flash',
                     contents: 'test',
+<<<<<<< HEAD
+=======
+                    config: { maxOutputTokens: 1 }, // Minimize cost and time
+>>>>>>> 06ac2400dd79f2665804748c70bf1849f5de0220
                 });
                 return { success: true };
             }
